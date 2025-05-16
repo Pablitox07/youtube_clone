@@ -7,6 +7,7 @@ from datetime import datetime
 import string
 import ffmpeg
 import time
+import shutil
 
 def is_overlapping(new_start, new_end, existing_ranges):
     for start, duration in existing_ranges:
@@ -63,3 +64,23 @@ def create_thumbnail(video_file, user_id, ext):
                 time.sleep(0.5)
     except Exception.Error as e:
         return {"status": False, "message": str(e), "message_to_user": "An error occurred."}
+    
+def save_thumbnail(thumbnail, url, user_id, ext):
+    try:
+        static_root = settings.STATICFILES_DIRS[0]
+        user_dir = os.path.join(static_root, 'videos', str(user_id), url)
+        os.makedirs(user_dir, exist_ok=True)  # Ensure directory exists
+
+        thumbnail_file_name = os.path.join(user_dir, f"{url}.{ext}")
+
+        with open(thumbnail_file_name, 'wb+') as destination:
+            for chunk in thumbnail.chunks():
+                destination.write(chunk)
+
+        return {"status": True}
+    except Exception as e:
+        return {
+            "status": False,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }

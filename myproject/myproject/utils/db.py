@@ -159,3 +159,40 @@ def check_login(username, password):
     finally:
         if conn:
             conn.close()
+
+
+def insert_video_on_db(video_id, user_id, title, descrition, thumbnail_ext, video_ext):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO videos (video_id, user_id, thumbnail, video_file, title, description)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        data = (
+            video_id,
+            user_id,
+            f"{video_id}.{thumbnail_ext}",
+            f"{video_id}.{video_ext}",
+            title,
+            descrition
+        )
+
+        cursor.execute(query, data)
+        conn.commit()
+        return {"result": True, "message": "video saved correctly", "status": 200}
+
+    except Exception as e:
+        return {
+            "result": False,
+            "status": 500,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }
+
+    finally:
+        if conn:
+            conn.close()

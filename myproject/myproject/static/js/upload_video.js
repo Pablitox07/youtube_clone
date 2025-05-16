@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", ()=> {
     const upload_video_button = document.getElementById("upload_video_button");
     upload_video_button.addEventListener("click", (event)=> {
         event.preventDefault();
+        const formData = new FormData();
 
         let errors = [];
         const errorMessage = document.getElementById("error-message");
@@ -14,13 +15,18 @@ document.addEventListener("DOMContentLoaded", ()=> {
         const title_input = document.getElementById("title");
         const description_input = document.getElementById("description");
         const video_file_input = document.getElementById("video_file");
+        // thumbnail_file
+        const thumbnail_file_input = document.getElementById("thumbnail_file");
         const allowedExtensions = ['.mp4', '.avi', '.mkv'];
+        const thumbnail_allowedExtensions = [".png", ".jpg", ".jpeg"]
 
         const video_file = video_file_input.files[0];
+        const thumbnail_file = thumbnail_file_input.files[0];
 
         // Clear previous validation states
         video_file_input.classList.remove("is-invalid");
-        title_input.classList.remove("is-invalid")
+        title_input.classList.remove("is-invalid");
+        thumbnail_file_input.classList.remove("is-invalid");
 
         if (title_input.value.trim().length == 0) {
             errors.push("Title must not be blank.");
@@ -36,11 +42,23 @@ document.addEventListener("DOMContentLoaded", ()=> {
             const fileName = video_file.name;
             const extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
             if (!allowedExtensions.includes(`.${extension}`)){
-                errors.push("Invalid file type.");
+                errors.push("Invalid video file type.");
                 video_file_input.classList.add("is-invalid");
             }
         }
 
+        if (thumbnail_file){
+            const fileName = thumbnail_file.name;
+            const extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+            if (!thumbnail_allowedExtensions.includes(`.${extension}`)){
+                errors.push("Invalid thumbnail file type.");
+                thumbnail_file_input.classList.add("is-invalid");
+            }
+            else{
+                formData.append('thumbnail', thumbnail_file);
+                formData.append('thumbnail_ext', extension);
+            }
+        }
         if (errors.length > 0) {
             errorMessage.innerHTML = errors.join("<br>");
             errorMessage.classList.remove("d-none");
@@ -50,12 +68,13 @@ document.addEventListener("DOMContentLoaded", ()=> {
             const extension = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
             errorMessage.classList.add("d-none");
 
-            const formData = new FormData();
             formData.append('video', video_file);
             const user_id_on_cookie = JSON.parse(localStorage.getItem("user"))["user_id"];
             formData.append("user_id", user_id_on_cookie); 
             formData.append("title", title_input.value.trim()); 
-            formData.append("description", description_input); 
+            if (description_input.value.trim().length > 0) {
+                formData.append("description", description_input.value.trim()); 
+            }
             formData.append("extension", extension);
             fetch(`/upload_video`, {
                 method: "POST",
