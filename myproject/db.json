@@ -1,0 +1,9 @@
+{
+    "users": ["user_id", "username", "password", "created_on", "profile_pic"],
+    "videos": ["video_id", "user_id", "num_likes", "num_dislikes", "thumbnail", "title", "video_file", "description"],
+    "comments": ["comment_id","video_id", "user_id", "content", "num_likes", "num_dislikes", "created_on" ],
+    "history": ["search_id", "search_content", "searched_on", "user_id"],
+    "video_likes": ["like_id", "user_id", "is_like", "video_id"],
+    "comments_likes": ["like_id", "user_id", "is_like", "comment_id"],
+    "subscriptions": ["sub_id", "followed_id", "follower_id", "created_on" ]
+}
