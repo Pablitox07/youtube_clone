@@ -185,6 +185,16 @@ def videos_view(request, video_id):
             "status": 500,
             "message": video_current_likes_dislikes["message_to_user"]
         }, status=500)
+    
+    # GET THE COMMENST FROM THE DATABASE
+    video_comments = mydb.get_video_comments_info_from_db(video_id= video_id)
+    if not video_comments["result"]:
+        logger.exception(video_comments["message"])
+        return JsonResponse({
+            "status": 500,
+            "message": video_comments["message_to_user"]
+        }, status=500)
+
     video_id = result["video"][0]
     user_id = result["video"][1] 
     likes = video_current_likes_dislikes["likes"]
@@ -212,7 +222,8 @@ def videos_view(request, video_id):
             "video_views": video_views,
             "video_path": f"/static/videos/{user_id}/{video_id}/{video_file}",
             "uploader_username": uploader_username,
-            "uploader_profile_pic": uploader_profile_pic
+            "uploader_profile_pic": uploader_profile_pic,
+            "comments": video_comments["comments"]
         })
 
 
@@ -357,3 +368,73 @@ def user_like_dislike_status(request):
         "like_dislike_status": has_user_liked_disliked_video["like_dislike_status"]
     }, 
     status=200)
+
+
+def publish_comment(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_id = int(data.get('user_id'))
+        comment_content = data.get('comment_content')
+        video_id = data.get('video_id')
+        auth_header = request.headers.get("Authorization")
+
+        # user_info = { "status": True, "user_id": user_id, "username": username, "profile_pic": profile_pic }
+        user_info = myauth.verify_token(auth_header)
+
+        # IF TOKEN EXPIRED OR USER MANIPULATED THE USER_ID 
+        if not user_info['status'] or int(user_id) != int(user_info['user_id']):
+            return JsonResponse({
+            "status": 401,
+            "validity": False
+        }, 
+        status=401)
+
+        # comment_status = {"result": True, "comment_result": (11, 'Commented on May 19 2025 at 11:30 AM') }
+        comment_status = mydb.insert_comment_into_db(video_id= video_id, user_id= user_id, content= comment_content)
+
+        # comment_status = { "result": False, "status": 500, "message": str(e), "message_to_user": "An error occurred."}
+        if not comment_status['result']:
+            logger.exception(comment_status["message"])
+            return JsonResponse({
+                "status": 500,
+                "message": user_info["message_to_user"]
+            }, status=500)
+        
+        return JsonResponse({
+            "status": 200,
+            "comment_id": comment_status["comment_result"][0],
+            "created_on": comment_status["comment_result"][1]
+        }, status=200)
+
+
+
+
+
+
+def check_token(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_id = data.get('user_id')
+        auth_header = request.headers.get("Authorization")
+
+        # GET USER INFROMATION
+        # user_info = { "status": True, "user_id": user_id, "username": username, "profile_pic": profile_pic }
+        user_info = myauth.verify_token(auth_header)
+
+        print(f"\n{auth_header}\n")
+
+        if not user_info['status'] or int(user_id) != int(user_info['user_id']):
+            return JsonResponse({
+            "status": 200,
+            "validity": False
+        }, 
+        status=200)
+
+        return JsonResponse({
+            "status": 200,
+            "validity": True
+        }, status= 200)
+
+
+
+    

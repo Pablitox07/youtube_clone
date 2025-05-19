@@ -51,21 +51,41 @@
     <!-- Comments Section -->
     <div class="mt-5">
       <h4>Comments</h4>
-      <form method="POST" action="/videos/{{ video_id }}/comment">
-        {% csrf_token %}
-        <textarea name="comment" class="form-control mb-2" placeholder="Add a comment..." rows="2"></textarea>
-        <button class="btn btn-secondary" type="submit">Post Comment</button>
-      </form>
+        <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
+        <textarea name="comment" class="form-control mb-2" placeholder="Add a comment..." rows="2" id="comment_text_are"></textarea>
+        <button class="btn btn-secondary" id="publish_comment_button">Post Comment</button>
 
-      <ul class="list-group mt-3">
+      <ul class="list-group mt-3" id="comment_seccion_ul">
         {% for comment in comments %}
           <li class="list-group-item">
-            <strong>{{ comment.user }}</strong>: {{ comment.text }}
+            <div class="d-flex align-items-start">
+              <!-- Profile Picture -->
+              <img src="{{ comment.profile_pic_url }}" alt="Profile" class="rounded-circle me-3" width="40" height="40">
+      
+              <div class="flex-grow-1">
+                <!-- Username and Date -->
+                <div class="d-flex justify-content-between">
+                  <strong>{{ comment.user }}</strong>
+                  <small class="text-muted">{{ comment.created_at }}</small>
+                </div>
+      
+                <!-- Comment Text -->
+                <span>{{ comment.text }}</span>
+      
+                <!-- Like/Dislike Buttons -->
+                <div class="mt-2 d-flex align-items-center gap-2">
+                  <button class="btn btn-sm btn-outline-success">Like ({{ comment.likes }})</button>
+                  <button class="btn btn-sm btn-outline-danger">Dislike ({{ comment.dislikes }})</button>
+                </div>
+              </div>
+            </div>
           </li>
         {% empty %}
-          <li class="list-group-item">No comments yet.</li>
+          <li class="list-group-item" id="comment_text_when_no_comments">No comments yet.</li>
         {% endfor %}
       </ul>
+      
+      
     </div>
   </div>
 

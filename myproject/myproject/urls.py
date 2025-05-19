@@ -11,5 +11,7 @@ urlpatterns = [
     path('videos/<str:video_id>/', views.videos_view, name='video_detail'),
     path('post_likes/<str:like_type>/', views.post_likes, name='post_likes'),
     path('user_like_dislike_status', views.user_like_dislike_status, name= 'user_like_dislike_status'),
+    path('check_token', views.check_token, name= 'check_token'),
+    path('publish_comment', views.publish_comment, name= 'publish_comment')
 ]
 

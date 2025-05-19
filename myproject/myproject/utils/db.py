@@ -5,6 +5,8 @@ load_dotenv()
 import random
 import bcrypt
 import myproject.utils.auth as myauth
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 db_password = os.environ.get('DB_PASSWORD')
@@ -338,6 +340,10 @@ def get_current_video_likes_dislikes(video_id):
         cursor.execute(query, (video_id,))
         current_likes = cursor.fetchone()
         conn.commit()
+        # IF THERE ARE NO LIKES OR DISLIKES IT SHOULD CONVERT THEM INTO 0s
+        current_likes[0] = 0 if not current_likes[0] else current_likes[0]
+        current_likes[1] = 0 if not current_likes[1] else current_likes[1]
+
         return {"result": True, "likes": current_likes[0], "dislikes": current_likes[1]}
 
     except Exception as e:
@@ -417,3 +423,91 @@ def modify_video_like_dislike_from_db(user_id, video_id, new_like_status):
             conn.close()
 
  
+def get_video_comments_info_from_db(video_id):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT comments.*, users.username, users.profile_pic FROM comments
+            JOIN users ON comments.user_id = users.user_id
+            WHERE video_id = ?
+        """
+
+        cursor.execute(query, (video_id,))
+        current_comments = cursor.fetchall()
+        conn.commit()
+
+        formated_commerts = []
+
+        # current_comments = [(1, '202505163aS8pj', 3, 'LOOOOOOOOOOOOOL', 0, 0, datetime.datetime(2025, 5, 18, 15, 44, 53, 717000), 'pablitox', 'default-3.jpg')]
+        for comment in current_comments:
+            # {"user": "Pablitox", "text": "loooooooooool", "profile_pic_url": "/static/images/default-3.jpg", "likes": 666, "dislikes":999, "created_at": "05/07/1994"}
+            dt_utc = comment[6].replace(tzinfo=ZoneInfo("UTC"))
+            dt_local = dt_utc.astimezone(ZoneInfo("America/Costa_Rica"))
+            comment[6] = dt_local.strftime("Commented on %B %d %Y at %I:%M %p")
+            formated_commerts.append(
+                {
+                    "user": comment[7], 
+                    "text": comment[3], 
+                    "profile_pic_url": f"/static/images/{comment[8]}", 
+                    "likes": comment[4], 
+                    "dislikes":comment[5], 
+                    "created_at": comment[6]
+                }
+            )
+
+        return {"result": True, "comments": formated_commerts}
+
+    except Exception as e:
+        return {
+            "result": False,
+            "status": 500,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }
+
+    finally:
+        if conn:
+            conn.close()    
+
+
+def insert_comment_into_db(video_id, user_id, content):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO comments (video_id, user_id, content)
+            OUTPUT INSERTED.comment_id, INSERTED.created_on
+            VALUES (?, ?, ?)
+        """
+
+        cursor.execute(query, (video_id, int(user_id), content))
+        comment_result = cursor.fetchone()
+        conn.commit()
+        dt_utc = comment_result[1].replace(tzinfo=ZoneInfo("UTC"))
+        dt_local = dt_utc.astimezone(ZoneInfo("America/Costa_Rica"))
+        comment_result[1] = dt_local.strftime("Commented on %B %d %Y at %I:%M %p")
+
+        print(f"\n{comment_result}\n")
+        return {"result": True, "comment_result": comment_result }
+
+    except Exception as e:
+        return {
+            "result": False,
+            "status": 500,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }
+
+    finally:
+        if conn:
+            conn.close()
+
+
+
