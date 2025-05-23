@@ -5,12 +5,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const publish_comment_button = document.getElementById('publish_comment_button');
     const errorMessage = document.getElementById("error-message");
     const comment_seccion_ul = document.getElementById('comment_seccion_ul');
+    const follow_profile_button = document.getElementById("follow_profile_button");
+
 
     // IF USER IS LOGGED IT WILL GET THE USER LIKE OR DISLIKE STATUS
     if (is_user_logged()) {
         const token = localStorage.getItem("token");
         const user = JSON.parse(localStorage.getItem("user"));
-        fetch(`/user_like_dislike_status?user_id=${user["user_id"]}&video_id=${received_video_id}`, {
+        fetch(`/user_like_dislike_status?user_id=${user["user_id"]}&video_id=${received_video_id}&uploader=${received_user_id}`, {
             method: "GET"
         })
         .then(async response =>{
@@ -28,8 +30,36 @@ document.addEventListener("DOMContentLoaded", () => {
                     video_dislike_buton.classList.remove("btn-outline-danger");
                     video_dislike_buton.classList.add("btn-danger");
                 }
+
+                data["user_comments_likes_status"].forEach(function(comment) {
+                    let comment_like_buton = document.getElementById(`like_button_commnet_id_${comment[1]}`);
+                    let comment_dislike_buton = document.getElementById(`dislike_button_commnet_id_${comment[1]}`);
+                    if (comment[2]){
+                        comment_like_buton.classList.remove("btn-outline-success");
+                        comment_like_buton.classList.add("btn-success");
+                        comment_dislike_buton.classList.remove("btn-danger");
+                        comment_dislike_buton.classList.add("btn-outline-danger");
+                    }
+                    else {
+                        comment_dislike_buton.classList.remove("btn-outline-danger");
+                        comment_dislike_buton.classList.add("btn-danger");
+                        comment_like_buton.classList.remove("btn-success");
+                        comment_like_buton.classList.add("btn-outline-success");
+                    }
+                  });
+                
+                if (data["own_video"]){
+                    follow_profile_button.classList.add("d-none");
+                }
+                if (data["follwoing_state"]){
+                    follow_profile_button.innerHTML = "Following";
+                }
+                else{
+                    follow_profile_button.innerHTML = "Follow";
+                }
             }
         });
+
     }
 
 
@@ -168,8 +198,8 @@ document.addEventListener("DOMContentLoaded", () => {
         
                   <!-- Like/Dislike Buttons -->
                   <div class="mt-2 d-flex align-items-center gap-2">
-                    <button class="btn btn-sm btn-outline-success">Like (0)</button>
-                    <button class="btn btn-sm btn-outline-danger">Dislike (0)</button>
+                    <button class="btn btn-sm btn-outline-success" onclick="comment_likes(${data['comment_id']}, ${true})" id="like_button_commnet_id_${data['comment_id']}">Like (0)</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="comment_likes(${data['comment_id']}, ${false})" id="dislike_button_commnet_id_${data['comment_id']}">Dislike (0)</button>
                   </div>
                 </div>
               </div>
@@ -183,5 +213,39 @@ document.addEventListener("DOMContentLoaded", () => {
         })
 
     });
+
+    follow_profile_button.addEventListener("click", ()=>{
+        if (is_user_logged()) {
+            const token = localStorage.getItem("token");
+            fetch("/follow_user", {
+                  method: "POST",
+                  headers: {
+                    "X-CSRFToken": getCSRFToken(),
+                    "Authorization": `Bearer ${token}`
+                  },
+                  body: JSON.stringify({user_profile:received_user_id})
+            })
+            .then(async response =>{
+                  if (!response.ok) {
+                      alert('An error occurred.');
+                  } 
+                  else {
+                      let data = await response.json();
+                      console.log(data);
+                      if (data["follwoing_state"]){
+                        follow_profile_button.innerHTML = "Following";
+                      }
+                      else {
+                        follow_profile_button.innerHTML = "Follow";
+                      }
+                  }
+            });
+          }
+          else {
+            window.location.href = '/login';
+          }
+    });
+
+
     
 });

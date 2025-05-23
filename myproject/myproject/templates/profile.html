@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ user.username }} Profile</title>
+  {% load static %}
+  <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  {% include "header.html" %}
+
+  <div class="container mt-5">
+    <div class="row">
+      <!-- Profile Card -->
+      <div class="col-md-4">
+        <div class="card text-center">
+          <div class="card-body">
+            <img src="/static/images/{{ user.profile_pic }}" alt="Profile Picture" class="rounded-circle mb-3" width="120" height="120">
+            <h4 class="card-title">{{ user.username }}</h4>
+            <button class="btn btn-outline-primary btn-sm mt-2" id="follow_profile_button">Follow</button>
+
+            <hr>
+
+            <p><strong>Registered on:</strong> {{ user.created_on }}</p>
+            <p id="follower_count"><strong>Followers:</strong> {{ user.follower_count }}</p>
+            <p><strong>Total Views:</strong> {{ user.total_views }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Info / Activity -->
+      <div class="col-md-8">
+        <h3>Recent Videos</h3>
+        <div class="row row-cols-1 row-cols-sm-2 g-4">
+          {% for video in videos %}
+            <div class="col">
+              <div class="card h-100">
+                <a href="{% url 'video_detail' video.video_id %}">
+                  <img src="/static/videos/{{ video.user_id }}/{{ video.video_id }}/{{ video.thumbnail }}" class="card-img-top" style="width: 100%; height: 200px; display: block; border-radius: 4px; " alt="Thumbnail">
+                </a>
+                <div class="card-body">
+                  <h6 class="card-title mb-1">{{ video.title }}</h6>
+                  <small class="text-muted">{{ video.video_views }} views</small>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <p>You haven't uploaded any videos yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const profile_id = "{{ user.user_id }}";
+    let follower_count = parseInt("{{ user.follower_count }}");
+    const follow_profile_button = document.getElementById("follow_profile_button");
+    const follower_count_text = document.getElementById("follower_count");
+
+    follow_profile_button.addEventListener("click", ()=>{
+      if (is_user_logged()) {
+        const token = localStorage.getItem("token");
+        fetch("/follow_user", {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": getCSRFToken(),
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({user_profile:profile_id})
+        })
+        .then(async response =>{
+              if (!response.ok) {
+                  alert('An error occurred.');
+              } 
+              else {
+                  let data = await response.json();
+                  console.log(data);
+                  if (data["follwoing_state"]){
+                    follow_profile_button.innerHTML = "Following";
+                    follower_count += 1;
+                    follower_count_text.innerHTML = `<strong>Followers:</strong> ${follower_count}`;
+                  }
+                  else {
+                    follow_profile_button.innerHTML = "Follow";
+                    follower_count -= 1;
+                    follower_count_text.innerHTML = `<strong>Followers:</strong> ${follower_count}`;
+                  }
+              }
+        });
+      }
+
+    });
+
+    if (is_user_logged()){
+      const token = localStorage.getItem("token");
+      fetch(`/is_user_following_the_other?user_profile=${profile_id}`, {
+            method: "GET",
+  	        headers: {
+    			    "Authorization": `Bearer ${token}`
+  	        }
+      })
+      .then(async response =>{
+            if (!response.ok) {
+                alert('An error occurred.');
+            } 
+            else {
+                let data = await response.json();
+                console.log(data);
+                if (data["own_profile"]) {
+                  follow_profile_button.classList.add("d-none");
+                }
+                if (data["follwoing_state"]){
+                  follow_profile_button.innerHTML = "Following";
+                }
+            }
+      });
+    }
+  </script>
+</body>
+</html>

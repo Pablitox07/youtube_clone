@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Video Player</title>
-  {% load static %}
-  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/css/plyr.css" />
+  <link href="/static/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 
@@ -24,11 +23,12 @@
 
     <!-- Uploader and stats -->
     <div class="d-flex align-items-center mb-3">
-      <img src="{{ uploader_profile_pic }}" alt="Profile Picture" class="rounded-circle me-2" width="50" height="50">
+      <a href="/profile/{{ user_id }}"><img src="{{ uploader_profile_pic }}" alt="Profile Picture" class="rounded-circle me-2" width="50" height="50"></a>
       <div>
         <strong>{{ uploader_username }}</strong><br>
         <small>{{ video_views }} views</small>
       </div>
+      <button class="btn btn-outline-primary btn-sm mt-2 m-2" id="follow_profile_button">Follow</button>
     </div>
 
     <!-- Description -->
@@ -39,11 +39,11 @@
     <!-- Like / Dislike buttons with counts -->
     <div class="mb-4 d-flex align-items-center">
       <button class="btn btn-outline-success me-2" id="video_like_buton">
-        Like ({{ likes }})
+        Likes ({{ likes }})
       </button>
     
       <button class="btn btn-outline-danger" id="video_dislike_buton">
-        Dislike ({{ dislikes }})
+        Dislikes ({{ dislikes }})
       </button>
     </div>
     
@@ -60,7 +60,7 @@
           <li class="list-group-item">
             <div class="d-flex align-items-start">
               <!-- Profile Picture -->
-              <img src="{{ comment.profile_pic_url }}" alt="Profile" class="rounded-circle me-3" width="40" height="40">
+              <a href="/profile/{{ comment.user_id }}"><img src="{{ comment.profile_pic_url }}" alt="Profile" class="rounded-circle me-3" width="40" height="40"></a>
       
               <div class="flex-grow-1">
                 <!-- Username and Date -->
@@ -74,8 +74,8 @@
       
                 <!-- Like/Dislike Buttons -->
                 <div class="mt-2 d-flex align-items-center gap-2">
-                  <button class="btn btn-sm btn-outline-success">Like ({{ comment.likes }})</button>
-                  <button class="btn btn-sm btn-outline-danger">Dislike ({{ comment.dislikes }})</button>
+                  <button class="btn btn-sm btn-outline-success" onclick="comment_likes('{{ comment.comment_id }}', true)" id="like_button_commnet_id_{{ comment.comment_id }}">Likes ({{ comment.likes }})</button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="comment_likes('{{ comment.comment_id }}', false)" id="dislike_button_commnet_id_{{ comment.comment_id }}">Dislikes ({{ comment.dislikes }})</button>
                 </div>
               </div>
             </div>
@@ -90,15 +90,69 @@
   </div>
 
   <!-- Plyr JS -->
-  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+  <script src="/static/js/plyr.polyfilled.js"></script>
   <script>
     let like_dislike_status = "";
     let received_likes = parseInt("{{ likes }}", 10); 
     let received_dislikes = parseInt("{{dislikes}}", 10)
     const received_video_id = "{{ video_id }}"; 
+    const received_user_id = "{{ user_id }}";
     document.addEventListener("DOMContentLoaded", () => {
       const player = new Plyr('#player');
     });
+    // FUNCTION TO LIKE OR DISLIKES COMMENTS
+    function comment_likes(comment_id, is_like) {
+        comment_id = parseInt(comment_id);
+        const user_info = JSON.parse(localStorage.getItem("user"));
+
+        fetch(`/publish_comment_likes`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken(),
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({user_id: user_info['user_id'], comment_id: comment_id, is_like: is_like, video_id: received_video_id})
+        })
+        .then(async response =>{
+            if (!response.ok) {
+                let data = await response.json();
+                alert(data["message"]);
+            } 
+            else if (response.status == 401) {
+                logout_user();
+                window.location.href = "/login";
+            }
+            else if (response.status == 200) {
+                // user_id, username, profile_pic, token, 
+                let data = await response.json();
+                console.log(data);
+                const like_button = document.getElementById(`like_button_commnet_id_${comment_id}`);
+                const dislike_button = document.getElementById(`dislike_button_commnet_id_${comment_id}`);
+                like_button.innerHTML = `Likes (${data["likes"]})`;
+                dislike_button.innerHTML = `Dislikes (${data["dislikes"]})`;
+                if (data["like_dislike_status"] == "liked"){
+                  like_button.classList.remove("btn-outline-success");
+                  like_button.classList.add("btn-success");
+                  dislike_button.classList.remove("btn-danger");
+                  dislike_button.classList.add("btn-outline-danger");
+                }
+                else if (data["like_dislike_status"] == 'disliked'){
+                  dislike_button.classList.remove("btn-outline-danger");
+                  dislike_button.classList.add("btn-danger");
+                  like_button.classList.remove("btn-success");
+                  like_button.classList.add("btn-outline-success");
+                }
+                else if (data["like_dislike_status"] == ''){
+                  like_button.classList.remove("btn-success");
+                  like_button.classList.add("btn-outline-success");
+                  dislike_button.classList.remove("btn-danger");
+                  dislike_button.classList.add("btn-outline-danger");
+                }
+            }
+        })
+
+    }
   </script>
   <script type="module" src="/static/js/videos_view.js"></script>
 </body>

@@ -9,8 +9,14 @@ from django.http import JsonResponse
 from django.conf import settings
 import logging
 
-
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(name)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s',
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
+)
 
 
 
@@ -117,7 +123,7 @@ def upload_video(request):
         # It returns a directory with a status that says if it was able to store the video or not
         video_upload_result = videoandfs.save_video(video= video, user_id= user_info["user_id"],ext= video_extension)
         if not video_upload_result["status"]:
-            logger.exception(video_upload_result["message"])
+            logging.error(video_upload_result["message"])
             return JsonResponse({
                 "status": 500,
                 "message": user_info["message_to_user"]
@@ -128,7 +134,7 @@ def upload_video(request):
         if not thumbnail:
             gif_upload_result = videoandfs.create_thumbnail(video_file= video_upload_result["url_provided"], user_id= user_info["user_id"], ext= video_upload_result["ext"])
             if not gif_upload_result["status"]:
-                logger.exception(video_upload_result["message"])
+                logging.error(video_upload_result["message"])
                 return JsonResponse({
                     "status": 500,
                     "message": user_info["message_to_user"]
@@ -138,7 +144,7 @@ def upload_video(request):
         else:
             thumbnail_result = videoandfs.save_thumbnail(thumbnail= thumbnail, url= video_upload_result["url_provided"], user_id= user_info["user_id"], ext= thumbnail_ext)
             if not thumbnail_result["status"]:
-                logger.exception(thumbnail_result["message"])
+                logging.error(thumbnail_result["message"])
                 return JsonResponse({
                     "status": 500,
                     "message": user_info["message_to_user"]
@@ -155,7 +161,7 @@ def upload_video(request):
             duration= video_upload_result["duration"]
         )
         if not db_insert_video_result["result"]:
-            logger.exception(thumbnail_result["message"])
+            logging.error(thumbnail_result["message"])
             return JsonResponse({
                 "status": 500,
                 "message": user_info["message_to_user"]
@@ -168,19 +174,18 @@ def upload_video(request):
 
     else: 
         return render(request, 'upload_video.html')
-    
-
 
 def videos_view(request, video_id):
     result = mydb.get_video_information_from_db(video_id= video_id)
     # result["video"] = (video_id, user_id, likes, dislikes, thumbnail_file, title, video_file, description, duration, video_views, uploader_username, uploader_profile_pic)
     if int(result["status"]) == 404:
-        print("400000000000000004") 
+        return render(request, '404.html')
     
     # video_current_likes_dislikes = {"result": True, "likes": current_likes[0], "dislikes": current_likes[1]}
     video_current_likes_dislikes = mydb.get_current_video_likes_dislikes(video_id= video_id)
+    
     if not video_current_likes_dislikes["result"]:
-        logger.exception(video_current_likes_dislikes["message"])
+        logging.error(video_current_likes_dislikes["message"])
         return JsonResponse({
             "status": 500,
             "message": video_current_likes_dislikes["message_to_user"]
@@ -189,11 +194,12 @@ def videos_view(request, video_id):
     # GET THE COMMENST FROM THE DATABASE
     video_comments = mydb.get_video_comments_info_from_db(video_id= video_id)
     if not video_comments["result"]:
-        logger.exception(video_comments["message"])
+        logging.error(video_comments["message"])
         return JsonResponse({
             "status": 500,
             "message": video_comments["message_to_user"]
         }, status=500)
+
 
     video_id = result["video"][0]
     user_id = result["video"][1] 
@@ -225,8 +231,6 @@ def videos_view(request, video_id):
             "uploader_profile_pic": uploader_profile_pic,
             "comments": video_comments["comments"]
         })
-
-
 
 def post_likes(request, like_type):
     if request.method == 'POST':
@@ -267,7 +271,7 @@ def post_likes(request, like_type):
 
             # IF THERE IS AN EXCEPTION INSERTING THE LIKE OR DISLIKE IN THE DATABASE
             if not result_insert_like["result"]:
-                logger.exception(result_insert_like["message"])
+                logging.error(result_insert_like["message"])
                 return JsonResponse({
                     "status": 500,
                     "message": user_info["message_to_user"]
@@ -278,7 +282,7 @@ def post_likes(request, like_type):
                 number_of_like_dislikes = mydb.get_current_video_likes_dislikes(video_id)
                 # IF THERE IS AN EXCEPTION GETTING THE CURRENT NUMBER OF LIKES
                 if not number_of_like_dislikes["result"]:
-                    logger.exception(number_of_like_dislikes["message"])
+                    logging.error(number_of_like_dislikes["message"])
                     return JsonResponse({
                         "status": 500,
                         "message": number_of_like_dislikes["message_to_user"]
@@ -298,7 +302,7 @@ def post_likes(request, like_type):
             if int(like_status["status"]) == int(like_type):
                 result_delete_like = mydb.delete_like_on_db(user_id= user_id_receved, video_id= video_id)
                 if not result_delete_like["result"]:
-                    logger.exception(result_insert_like["message"])
+                    logging.error(result_insert_like["message"])
                     return JsonResponse({
                         "status": 500,
                         "message": result_delete_like["message_to_user"]
@@ -309,7 +313,7 @@ def post_likes(request, like_type):
                     number_of_like_dislikes = mydb.get_current_video_likes_dislikes(video_id)
                     # IF THERE IS AN EXCEPTION GETTING THE CURRENT NUMBER OF LIKES
                     if not number_of_like_dislikes["result"]:
-                        logger.exception(number_of_like_dislikes["message"])
+                        logging.error(number_of_like_dislikes["message"])
                         return JsonResponse({
                             "status": 500,
                             "message": number_of_like_dislikes["message_to_user"]
@@ -326,7 +330,7 @@ def post_likes(request, like_type):
             # IT SHOULD DELETE THE EXISTING LIKE OR DISLIKE FROM THE DATABASE
             result_like_modication = mydb.modify_video_like_dislike_from_db(user_id= user_id_receved, video_id= video_id, new_like_status= like_type)
             if not result_like_modication["result"]:
-                logger.exception(result_like_modication["message"])
+                logging.error(result_like_modication["message"])
                 return JsonResponse({
                     "status": 500,
                     "message": result_like_modication["message_to_user"]
@@ -336,7 +340,7 @@ def post_likes(request, like_type):
             number_of_like_dislikes = mydb.get_current_video_likes_dislikes(video_id)
             # IF THERE IS AN EXCEPTION GETTING THE CURRENT NUMBER OF LIKES
             if not number_of_like_dislikes["result"]:
-                logger.exception(number_of_like_dislikes["message"])
+                logging.error(number_of_like_dislikes["message"])
                 return JsonResponse({
                     "status": 500,
                         "message": number_of_like_dislikes["message_to_user"]
@@ -349,26 +353,43 @@ def post_likes(request, like_type):
                 "new_dislikes": number_of_like_dislikes["dislikes"]
             }, status=200)
 
-
 def user_like_dislike_status(request):
     user_id_receved = request.GET.get('user_id')
     video_id = request.GET.get('video_id')
+    uploader = request.GET.get('uploader')
+    own_video = False
+
     # has_user_liked_disliked_video = {"result": True, "like_dislike_status": like_dislike_status}
     has_user_liked_disliked_video = mydb.has_user_liked_disliked_video(user_id= user_id_receved, video_id= video_id)
 
     if not has_user_liked_disliked_video["result"]:
-        logger.exception(has_user_liked_disliked_video["message"])
+        logging.error(has_user_liked_disliked_video["message"])
         return JsonResponse({
             "status": 500,
             "message": has_user_liked_disliked_video["message_to_user"]
         }, 
         status=500)
+
+    following_status = mydb.is_user_following_the_other(followed_id= uploader, follower_id= user_id_receved)
+    if not following_status["result"]:
+        logging.error(following_status["message"])
+        return JsonResponse({
+            "status": 500,
+            "message": following_status["message_to_user"]
+        }, 
+        status=500)
+    if str(user_id_receved) == str(uploader):
+        own_video = True
+
+    # GET THE COMMENTS THAT THE USER HAS LIKED OR DISLIKED. 
     return JsonResponse({
         "status": 200,
-        "like_dislike_status": has_user_liked_disliked_video["like_dislike_status"]
+        "like_dislike_status": has_user_liked_disliked_video["like_dislike_status"],
+        "user_comments_likes_status": has_user_liked_disliked_video['user_comments_likes_status'],
+        "follwoing_state": following_status["follwoing_state"],
+        "own_video": own_video
     }, 
     status=200)
-
 
 def publish_comment(request):
     if request.method == 'POST':
@@ -394,7 +415,7 @@ def publish_comment(request):
 
         # comment_status = { "result": False, "status": 500, "message": str(e), "message_to_user": "An error occurred."}
         if not comment_status['result']:
-            logger.exception(comment_status["message"])
+            logging.error(comment_status["message"])
             return JsonResponse({
                 "status": 500,
                 "message": user_info["message_to_user"]
@@ -406,11 +427,6 @@ def publish_comment(request):
             "created_on": comment_status["comment_result"][1]
         }, status=200)
 
-
-
-
-
-
 def check_token(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -420,8 +436,6 @@ def check_token(request):
         # GET USER INFROMATION
         # user_info = { "status": True, "user_id": user_id, "username": username, "profile_pic": profile_pic }
         user_info = myauth.verify_token(auth_header)
-
-        print(f"\n{auth_header}\n")
 
         if not user_info['status'] or int(user_id) != int(user_info['user_id']):
             return JsonResponse({
@@ -435,6 +449,226 @@ def check_token(request):
             "validity": True
         }, status= 200)
 
+def publish_comment_likes(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_id = int(data.get('user_id'))
+        comment_id = int(data.get('comment_id'))
+        is_like = data.get('is_like')
+        video_id = data.get('video_id')
+        auth_header = request.headers.get("Authorization")  
 
+        like_dislike_status = "liked" if is_like == True else "disliked"
 
+        # user_info = { "status": True, "user_id": user_id, "username": username, "profile_pic": profile_pic }
+        user_info = myauth.verify_token(auth_header)
+
+        # IF TOKEN EXPIRED OR USER MANIPULATED THE USER_ID 
+        if not user_info['status'] or int(user_id) != int(user_info['user_id']):
+            return JsonResponse({
+            "status": 401,
+            "validity": False
+        }, 
+        status=401)
+
+        # CHECK IF USER HAS LIKED OR DISLIKES THE COMMENT
+        # user_comment_like_status = {"result": True, "like_dislike_status": liked, disliked or "" }
+        user_comment_like_status = mydb.has_user_liked_or_disliked_comment(user_id, comment_id)
+
+        if not user_comment_like_status['result']:
+            logging.error(user_comment_like_status["message"])
+            return JsonResponse({
+                "status": 500,
+                "message": user_comment_like_status["message_to_user"]
+            }, status=500)
+        
+        # IF THE USER HAS NOT LIKED OR DISLIKED TEH COMMENT. THE LIKE OR THE DISLIKE MUST BE INSERTED TO THE DATABASE. 
+        if user_comment_like_status['like_dislike_status'] == "":
+            # insert_comment_like_result = {"result": True} 
+            insert_comment_like_result = mydb.publish_comment_like_into_db(user_id= user_id, comment_id= comment_id, is_like= is_like, video_id= str(video_id))
+
+            # IF FAILES insert_comment_like_result = { "result": False, "status": 500, "message": str(e), "message_to_user": "An error occurred." }
+            if not insert_comment_like_result['result']:
+                logging.error(insert_comment_like_result["message"])
+                return JsonResponse({
+                    "status": 500,
+                    "message": insert_comment_like_result["message_to_user"]
+                }, status=500)
+            # GET CURRENT NUMBER OF LIKES AND DISLIKES OF THE COMMENT
+            # current_number_likes_dislikes = {'result': True, 'likes': 1, 'dislikes': 0}
+            current_number_likes_dislikes = mydb.get_current_comment_likes_dislikes(comment_id)
+            if not current_number_likes_dislikes["result"]:
+                logging.error(current_number_likes_dislikes["message"])
+                return JsonResponse({
+                    "status": 500,
+                    "message": current_number_likes_dislikes["message_to_user"]
+                }, status=500)
+            return JsonResponse({
+                    "status": 200,
+                    "like_dislike_status": like_dislike_status,
+                    "likes": current_number_likes_dislikes["likes"],
+                    "dislikes": current_number_likes_dislikes["dislikes"]
+                }, status=200)
+        else: 
+            if user_comment_like_status['like_dislike_status'] == like_dislike_status:
+                delete_comment_like_result = mydb.delete_comment_like_on_db(user_id, comment_id)
+
+                if not delete_comment_like_result['result']:
+                    logging.error(delete_comment_like_result["message"])
+                    return JsonResponse({
+                        "status": 500,
+                        "message": delete_comment_like_result["message_to_user"]
+                    }, status=500)
+                # GET CURRENT NUMBER OF LIKES AND DISLIKES OF THE COMMENT
+                # current_number_likes_dislikes = {'result': True, 'likes': 1, 'dislikes': 0}
+                current_number_likes_dislikes = mydb.get_current_comment_likes_dislikes(comment_id)
+                if not current_number_likes_dislikes["result"]:
+                    logging.error(current_number_likes_dislikes["message"])
+                    return JsonResponse({
+                        "status": 500,
+                        "message": current_number_likes_dislikes["message_to_user"]
+                    }, status=500)
+                return JsonResponse({
+                    "status": 200,
+                    "like_dislike_status": "",
+                    "likes": current_number_likes_dislikes["likes"],
+                    "dislikes": current_number_likes_dislikes["dislikes"]
+                }, status=200)
+            else: 
+                modify_comment_like_status = mydb.modify_comment_like_dislike_from_db(user_id= user_id, comment_id= comment_id, new_like_status= is_like)
+                if not modify_comment_like_status['result']:
+                    logging.error(modify_comment_like_status["message"])
+                    return JsonResponse({
+                        "status": 500,
+                        "message": modify_comment_like_status["message_to_user"]
+                    }, status=500) 
+                # GET CURRENT NUMBER OF LIKES AND DISLIKES OF THE COMMENT
+                # current_number_likes_dislikes = {'result': True, 'likes': 1, 'dislikes': 0}
+                current_number_likes_dislikes = mydb.get_current_comment_likes_dislikes(comment_id)
+                if not current_number_likes_dislikes["result"]:
+                    logging.error(current_number_likes_dislikes["message"])
+                    return JsonResponse({
+                        "status": 500,
+                        "message": current_number_likes_dislikes["message_to_user"]
+                    }, status=500)
+                return JsonResponse({
+                    "status": 200,
+                    "like_dislike_status": like_dislike_status,
+                    "likes": current_number_likes_dislikes["likes"],
+                    "dislikes": current_number_likes_dislikes["dislikes"]
+                }, status=200)
+                               
+def search_results(request):
+    query = str(request.GET.get("q"))
+    result = mydb.search_videos_on_db(query= query)
+    return render(request, "search_results.html",{
+        "query": query, 
+        "results": result["videos"]
+    })
+
+def profile_page(request, user_id):
+    try:
+        user_id = int(user_id)
+    except ValueError:
+        return render(request, '404.html')
     
+    result = mydb.get_user_info_from_db(user_id= user_id)
+    if not result["result"]:
+        logging.error(result["message"])
+        return JsonResponse({
+            "status": 500,
+            "message": result["message_to_user"]
+        }, status=500)
+
+    if result["status"] == 404:
+        return render(request, '404.html')
+    
+    return render(request, 'profile.html', result)
+
+
+def is_user_following_the_other(request):
+    # GET AUTHENTICATION TOKEN 
+    auth_header = request.headers.get("Authorization")
+    
+    # GET THE UER'S PROFILE ID 
+    user_profile = request.GET.get('user_profile')
+
+    #CHECK VIEWER TOKEN AND GET THE VIEWER'S USER_ID
+    user_info = myauth.verify_token(token= auth_header)
+    if not user_info["status"]:
+        return JsonResponse({
+            "status": 401,
+            "message": user_info["message"]
+        }, status=401)
+    
+        
+    own_profile = False
+
+    if int(user_info["user_id"]) != int(user_profile):
+        result = mydb.is_user_following_the_other(followed_id= user_profile, follower_id= user_info["user_id"])
+    else:
+        own_profile = True
+    
+    # result = {"result": True, "follwoing_state": True}
+    result = mydb.is_user_following_the_other(followed_id= user_profile, follower_id= user_info["user_id"])
+
+
+    return JsonResponse({
+            "status": 200,
+            "follwoing_state": result["follwoing_state"],
+            "own_profile": own_profile
+        }, status=200)
+
+def follow_user(request):
+    if request.method == 'POST':
+        auth_header = request.headers.get("Authorization")
+
+        #CHECK VIEWER TOKEN AND GET THE VIEWER'S USER_ID
+        user_info = myauth.verify_token(token= auth_header)
+        if not user_info["status"]:
+            return JsonResponse({
+                "status": 401,
+                "message": user_info["message"]
+            }, status=401)
+        data = json.loads(request.body)
+        user_profile = data.get('user_profile')
+
+        # {"result": True, "follwoing_state": True, "sub_id": follwoing_state[0]}
+        result = mydb.is_user_following_the_other(followed_id= user_profile, follower_id= user_info["user_id"])
+
+        if not result["result"]:
+            logging.error(result["message"])
+            return JsonResponse({
+                "status": 500,
+                "message": result["message_to_user"]
+            }, status=500)
+
+        # IF THE USER ALREADY FOLLOWED THE OTHER USER. THE FOLLOW SHOULD BE REMOVED
+        if result["follwoing_state"]:
+            result_deleting_follow = mydb.delete_following_from_db(sub_id= result["sub_id"])
+            if not result_deleting_follow["result"]:
+                logging.error(result["message"])
+                return JsonResponse({
+                    "status": 500,
+                    "message": result["message_to_user"]
+                }, status=500)
+            
+            return JsonResponse({
+                "status": 200,
+                "follwoing_state": False
+            }, status=200)
+        else:
+            result_inserting_to_db = mydb.insert_following_on_db(followed_id= user_profile, follower_id= user_info["user_id"])
+            if not result_inserting_to_db["result"]:
+                logging.error(result_inserting_to_db["message"])
+                return JsonResponse({
+                    "status": 500,
+                    "message": result_inserting_to_db["message_to_user"]
+                }, status=500)
+            
+            return JsonResponse({
+                "status": 200,
+                "follwoing_state": True
+            }, status=200)
+
+
