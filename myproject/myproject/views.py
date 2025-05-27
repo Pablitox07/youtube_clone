@@ -20,8 +20,19 @@ logging.basicConfig(
 
 
 
+
 def home_view(request):
-    return render(request, 'home.html')
+    # home_videos = {"result": True, "top_likes_videos": top_likes_videos, "top_likes_videos": top_likes_videos}
+    home_videos = mydb.get_home_page_videos()
+    if not home_videos["result"]:
+        logging.error(home_videos["message"])
+        return JsonResponse({
+            "status": 500,
+            "message": home_videos["message_to_user"]
+        }, status=500)
+    
+
+    return render(request, 'home.html', home_videos)
 
 def register_view(request):
     if request.method == 'POST':
@@ -211,8 +222,8 @@ def videos_view(request, video_id):
     description = result["video"][7] 
     duration = result["video"][8]
     video_views = result["video"][9]
-    uploader_username = result["video"][10]
-    uploader_profile_pic = result["video"][11]
+    uploader_username = result["video"][11]
+    uploader_profile_pic = result["video"][12]
 
     return render(request, 'videos_view.html', 
         {
@@ -670,5 +681,60 @@ def follow_user(request):
                 "status": 200,
                 "follwoing_state": True
             }, status=200)
+
+def count_view(request):
+    if request.method == 'POST':
+        auth_header = request.headers.get("Authorization")
+        data = json.loads(request.body)
+        video_id = data.get('video_id')
+
+        # user_info = { "status": True, "user_id": user_id, "username": username, "profile_pic": profile_pic }
+        user_info = myauth.verify_token(auth_header)
+
+        # IF TOKEN EXPIRED OR USER MANIPULATED THE USER_ID 
+        if not user_info['status']:
+            return JsonResponse({
+            "status": 401,
+            "validity": False
+            }, status=401)
+
+        insert_view_to_db = mydb.count_view(video_id)
+
+        # comment_status = { "result": False, "status": 500, "message": str(e), "message_to_user": "An error occurred."}
+        if not insert_view_to_db['result']:
+            logging.error(insert_view_to_db["message"])
+            return JsonResponse({
+                "status": 500,
+                "message": insert_view_to_db["message_to_user"]
+            }, status=500)
+        
+        return JsonResponse({
+            "status": 200
+        }, status=200)
+
+def get_sub_videos(request):
+    auth_header = request.headers.get("Authorization")
+
+    # user_info = { "status": True, "user_id": user_id, "username": username, "profile_pic": profile_pic }
+    user_info = myauth.verify_token(auth_header)
+
+    if not user_info["status"]:
+        return JsonResponse({
+                "status": 401
+        }, status=401)
+
+    videos_user_follows = mydb.get_videos_users_the_user_follows(user_id= user_info["user_id"])
+
+    if not videos_user_follows["result"]:
+        logging.error(videos_user_follows["message"])
+        return JsonResponse({
+            "status": 500,
+            "message": videos_user_follows["message_to_user"]
+        }, status=500)
+
+    return JsonResponse({
+         "status": 200,
+         "videos": videos_user_follows["videos"]
+    })
 
 

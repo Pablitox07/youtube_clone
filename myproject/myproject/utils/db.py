@@ -7,6 +7,7 @@ import bcrypt
 import myproject.utils.auth as myauth
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import myproject.views as views
 
 
 db_password = os.environ.get('DB_PASSWORD')
@@ -61,6 +62,7 @@ def test_connection():
         conn.close()
         return True
     except Exception as e:
+        views.logging.error(e)
         print(f"Error: {e}")
         return False
 
@@ -70,6 +72,7 @@ def get_connection():
         return conn
     except Exception as e:
         print(f"Error: {e}")
+        views.logging.error(e)
         return False
 
 def inser_user_on_db(username, plain_text_password):
@@ -216,10 +219,11 @@ def get_video_information_from_db(video_id):
         conn.commit()
         if not video_check_result: 
             return {"result": False, "status": 404}
-        if not video_check_result[11] in ["default-1.jpg", "default-2.jpg", "default-3.jpg"]:
-            video_check_result[11] = "CUSTOM IMG"
-        video_check_result[11] = f"/static/images/{video_check_result[11]}"
+        if not video_check_result[12] in ["default-1.jpg", "default-2.jpg", "default-3.jpg"]:
+            video_check_result[12] = "CUSTOM IMG"
+        video_check_result[12] = f"/static/images/{video_check_result[12]}"
         # video = (video_id, user_id, likes, dislikes, thumbnail_file, title, video_file, description, duration, video_views, uploader_username, uploader_profile_pic)
+
         return {"result": True, "status": 200, "video": video_check_result}
 
     except Exception as e:
@@ -281,7 +285,11 @@ def insert_like_on_db(user_id, video_id, is_like):
         """
 
         cursor.execute(query, (user_id, video_id, int(is_like)))
+
         conn.commit()
+
+        update_like_dislikes_videos_table(video_id)
+
         return {"result": True}
 
     except Exception as e:
@@ -296,6 +304,43 @@ def insert_like_on_db(user_id, video_id, is_like):
         if conn:
             conn.close()
 
+
+def update_like_dislikes_videos_table(video_id):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # current_likes = {"result": True, "likes": current_likes[0], "dislikes": current_likes[1]}
+        current_likes = get_current_video_likes_dislikes(video_id)
+        print(f"current_likes: {current_likes}")
+
+        query = """
+            UPDATE videos
+            SET num_likes = ?,
+                num_dislikes = ?
+            WHERE video_id = ?
+        """
+        cursor.execute(query, (current_likes["likes"], current_likes["dislikes"], video_id))
+
+        conn.commit()
+
+        return {"result": True}
+
+    except Exception as e:
+        return {
+            "result": False,
+            "status": 500,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }
+
+    finally:
+        if conn:
+            conn.close()
+
+
 def delete_like_on_db(user_id, video_id):
     conn = None
 
@@ -309,7 +354,11 @@ def delete_like_on_db(user_id, video_id):
         """
 
         cursor.execute(query, (user_id, video_id))
+
         conn.commit()
+
+        update_like_dislikes_videos_table(video_id)
+        
         return {"result": True}
 
     except Exception as e:
@@ -336,7 +385,7 @@ def get_current_video_likes_dislikes(video_id):
                 SUM(CASE WHEN is_like = 1 THEN 1 ELSE 0 END) AS likes,
                 SUM(CASE WHEN is_like = 0 THEN 1 ELSE 0 END) AS dislikes
             FROM video_likes
-            WHERE video_id = ?;
+            WHERE video_id = ?
         """
 
         cursor.execute(query, (video_id,))
@@ -420,7 +469,9 @@ def modify_video_like_dislike_from_db(user_id, video_id, new_like_status):
         """
 
         cursor.execute(query, (new_like_status, user_id, video_id))
+
         conn.commit()
+        update_like_dislikes_videos_table(video_id)
         return {"result": True}
 
     except Exception as e:
@@ -903,4 +954,166 @@ def insert_following_on_db(followed_id, follower_id):
         if conn:
             conn.close()
 
+def count_view(video_id):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE videos
+            SET video_views = video_views + 1
+            WHERE video_id = ?
+        """
+
+        cursor.execute(query, (video_id, ))
+        conn.commit()
+
+        return {"result": True}
+
+    except Exception as e:
+        return {
+            "result": False,
+            "status": 500,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }
+
+    finally:
+        if conn:
+            conn.close()    
+
+def get_home_page_videos():
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT TOP 5 
+                videos.*,
+                CAST(videos.num_likes AS FLOAT) / NULLIF(videos.num_likes + videos.num_dislikes, 0) AS like_ratio,
+                users.profile_pic,
+                users.username
+            FROM videos
+            JOIN users On videos.user_id = users.user_id
+            ORDER BY like_ratio DESC;
+        """
+
+        cursor.execute(query)
+        most_liked_videos = cursor.fetchall()
+
+        top_likes_videos_columns = ["video_id", "user_id", "num_likes", "num_dislikes", "thumbnail", "title", "video_file", "description", "duration", "video_views", "created_at", "like_ratio", "profile_pic", "username"]
+
+
+        top_likes_videos = [dict(zip(top_likes_videos_columns, item)) for item in most_liked_videos]
+        videos_sorted = sorted(top_likes_videos, key=lambda x: x['num_likes'], reverse=True)
+
+
+        query = """
+            SELECT TOP 5 videos.*,
+                users.profile_pic,
+                users.username FROM videos
+            JOIN users On videos.user_id = users.user_id
+            ORDER BY videos.video_views DESC
+        """
+
+        cursor.execute(query)
+        most_viewed_videos = cursor.fetchall()
+        liked_videos = ["video_id", "user_id", "num_likes", "num_dislikes", "thumbnail", "title", "video_file", "description", "duration", "video_views", "created_at", "profile_pic", "username"]
+
+        top_liked_videos = [dict(zip(liked_videos, item)) for item in most_viewed_videos]
+
+        query = """
+            SELECT TOP 5 videos.*,
+                users.profile_pic,
+                users.username 
+            FROM videos
+            JOIN users On videos.user_id = users.user_id
+            ORDER BY created_at desc
+        """
+
+        columns_latest_videos = ["video_id", "user_id", "num_likes", "num_dislikes", "thumbnail", "title", "video_file", "description", "duration", "video_views", "created_at", "profile_pic", "username"]
+
+        cursor.execute(query)
+        latest_videos = cursor.fetchall()
+
+        for video in latest_videos:
+            dt_utc = video[10].replace(tzinfo=ZoneInfo("UTC")) 
+            dt_local = dt_utc.astimezone(ZoneInfo("America/Costa_Rica"))
+            video[10] = dt_local.strftime("%B %d %Y at %I:%M %p")
+
+        latest_videos = [dict(zip(columns_latest_videos, item)) for item in latest_videos]
+
+        conn.commit()
+
+
+        return {"result": True, "top_likes_videos": videos_sorted, "top_liked_videos": top_liked_videos, "latest_videos": latest_videos}
+
+    except Exception as e:
+        return {
+            "result": False,
+            "status": 500,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }
+
+    finally:
+        if conn:
+            conn.close()    
+
+
+def get_videos_users_the_user_follows(user_id):
+    conn = None
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT followed_id FROM subscriptions
+            WHERE follower_id = ?
+        """
+
+        cursor.execute(query, (user_id, ))
+        list_of_users_followed = cursor.fetchall()
+        if not list_of_users_followed:
+            return {"result": True, "videos": []}
+
+        conditions = " OR ".join([
+            "user_id = ? "
+            for _ in list_of_users_followed
+        ])
+
+        query = f"""
+            SELECT TOP 5 * FROM videos
+            WHERE {conditions}
+            ORDER BY created_at desc
+        """
+        params = tuple(x[0] for x in list_of_users_followed)
+
+        cursor.execute(query, params)
+        latest_videos_from_followers = cursor.fetchall()
+        columns = ["video_id", "user_id", "num_likes", "num_dislikes", "thumbnail", "title", "video_file", "description", "duration", "video_views", "created_at"]
+        
+        final_json = [dict(zip(columns, item)) for item in latest_videos_from_followers]
+        
+        conn.commit()
+
+
+        return {"result": True, "videos": final_json}
+
+    except Exception as e:
+        return {
+            "result": False,
+            "status": 500,
+            "message": str(e),
+            "message_to_user": "An error occurred."
+        }
+
+    finally:
+        if conn:
+            conn.close()      
 

@@ -1,12 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-    {% include "header.html" %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <link href="/static/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <h1>home</h1>
+  {% include "header.html" %}
+  <div class="container mt-5">
+
+    <!-- Followed Users Videos -->
+    <h3 class="mb-4">From People You Follow</h3>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4 mb-5" id="div_videos_users_followed">
+        <div class="alert alert-info text-center mt-4" role="alert">
+            <a href="/login" class="alert-link">Log in</a> to start following other users.
+            <a href="/register" class="alert-link">register</a> if you don’t have an account.
+        </div>
+    </div>
+
+    <hr>
+    
+    <!-- Most Liked Videos -->
+    <h3 class="mb-4">Most Liked Videos</h3>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4 mb-5">
+      {% for video in top_likes_videos %}
+        <div class="col">
+          <div class="card h-100">
+            <a href="{% url 'video_detail' video.video_id %}">
+              <img src="/static/videos/{{ video.user_id }}/{{ video.video_id }}/{{ video.thumbnail }}" class="card-img-top" alt="Thumbnail" style="height: 180px; object-fit: cover;">
+            </a>
+            <div class="card-body">
+              <h6 class="card-title">{{ video.title }}</h6>
+              <div class="d-flex align-items-center mt-2">
+                <img src="/static/images/{{ video.profile_pic }}" class="rounded-circle me-2" width="30" height="30" alt="Uploader">
+                <div>
+                  <small class="text-muted">{{ video.username }}</small><br>
+                  <small class="text-muted">{{ video.num_likes }} likes • {{ video.num_dislikes }} Dislikes</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <hr>
+
+    <!-- Most Viewed Videos -->
+    <h3 class="mb-4">Most Viewed Videos</h3>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4 mb-5">
+      {% for video in top_liked_videos %}
+        <div class="col">
+          <div class="card h-100">
+            <a href="{% url 'video_detail' video.video_id %}">
+              <img src="/static/videos/{{ video.user_id }}/{{ video.video_id }}/{{ video.thumbnail }}" class="card-img-top" alt="Thumbnail" style="height: 180px; object-fit: cover;">
+            </a>
+            <div class="card-body">
+              <h6 class="card-title">{{ video.title }}</h6>
+              <div class="d-flex align-items-center mt-2">
+                <img src="/static/images/{{ video.profile_pic }}" class="rounded-circle me-2" width="30" height="30" alt="Uploader">
+                <div>
+                  <small class="text-muted">{{ video.username }}</small><br>
+                  <small class="text-muted">{{ video.video_views }} views</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <hr>
+
+      <!-- Latest Videos -->
+      <h3 class="mb-4">Latest Videos</h3>
+      <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-4 mb-5">
+        {% for video in latest_videos %}
+          <div class="col">
+            <div class="card h-100">
+              <a href="{% url 'video_detail' video.video_id %}">
+                <img src="/static/videos/{{ video.user_id }}/{{ video.video_id }}/{{ video.thumbnail }}" class="card-img-top" alt="Thumbnail" style="height: 180px; object-fit: cover;">
+              </a>
+              <div class="card-body">
+                <h6 class="card-title">{{ video.title }}</h6>
+                <div class="d-flex align-items-center mt-2">
+                  <img src="/static/images/{{ video.profile_pic }}" class="rounded-circle me-2" width="30" height="30" alt="Uploader">
+                  <div>
+                    <small class="text-muted">{{ video.username }}</small><br>
+                    <small class="text-muted">{{ video.video_views }} views • Uploaded on: {{ video.created_at }}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+  </div>
+
+  <script src="/static/js/home.js"></script>
+
 </body>
 </html>

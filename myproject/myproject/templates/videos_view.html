@@ -97,6 +97,30 @@
     let received_dislikes = parseInt("{{dislikes}}", 10)
     const received_video_id = "{{ video_id }}"; 
     const received_user_id = "{{ user_id }}";
+
+    const player = new Plyr('#player');
+    player.on('ended', () => {
+      if (is_user_logged()){
+        fetch(`/count_view`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${localStorage.getItem("token")}`,
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken() 
+            },
+            body: JSON.stringify({video_id:received_video_id})
+        })
+        .then(async response =>{
+            if (response.status === 401) {
+                window.location.href = '/login';
+            } 
+            else if (response.status >= 500) {
+                alert('An error occurred.');
+            }
+        })
+      }
+    });
+    
     document.addEventListener("DOMContentLoaded", () => {
       const player = new Plyr('#player');
     });

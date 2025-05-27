@@ -54,7 +54,6 @@
     </div>
   </div>
 
-  <script src="/static/js/bootstrap.bundle.min.js"></script>
   <script>
     const profile_id = "{{ user.user_id }}";
     let follower_count = parseInt("{{ user.follower_count }}");
@@ -91,6 +90,9 @@
                   }
               }
         });
+      }
+      else{
+        window.location.href = '/login';
       }
 
     });

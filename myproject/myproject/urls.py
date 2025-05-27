@@ -17,6 +17,8 @@ urlpatterns = [
     path('search_results', views.search_results, name= "search_results"),
     path('profile/<str:user_id>/', views.profile_page, name= 'profile_page'),
     path('is_user_following_the_other', views.is_user_following_the_other, name= "is_user_following_the_other"),
-    path('follow_user', views.follow_user, name= "follow_user")
+    path('follow_user', views.follow_user, name= "follow_user"),
+    path('count_view', views.count_view, name= 'count_view'),
+    path('get_sub_videos', views.get_sub_videos, name= 'get_sub_videos')
 ]
 
